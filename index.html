@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kairos ご提案 | 地図連動型 店舗別在庫検索サービス MVP開発</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#0F1B2D;
+    --navy-mid:#16263D;
+    --navy-soft:#223754;
+    --pin-orange:#FF6B35;
+    --realtime-teal:#2EC4B6;
+    --paper:#EDF1F5;
+    --paper-dim:#D9E1EA;
+    --ink:#16263D;
+    --muted:#5B7083;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:'Noto Sans JP',sans-serif;
+    color:var(--ink);
+    background:var(--paper);
+    line-height:1.8;
+    overflow-x:hidden;
+  }
+  h1,h2,h3,.brand{
+    font-family:'Space Grotesk',sans-serif;
+  }
+  a{color:inherit;text-decoration:none;}
+  img{max-width:100%;display:block;}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px;}
+  .tag{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:12px;letter-spacing:.12em;
+    color:var(--realtime-teal);
+    background:rgba(46,196,182,0.08);
+    border:1px solid rgba(46,196,182,0.3);
+    padding:6px 14px;border-radius:999px;
+    text-transform:uppercase;
+  }
+  .tag::before{
+    content:'';width:7px;height:7px;border-radius:50%;
+    background:var(--realtime-teal);
+    box-shadow:0 0 0 0 rgba(46,196,182,0.6);
+    animation:pulse 2s infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(46,196,182,0.6);}
+    70%{box-shadow:0 0 0 10px rgba(46,196,182,0);}
+    100%{box-shadow:0 0 0 0 rgba(46,196,182,0);}
+  }
+
+  /* ===== HERO ===== */
+  header.hero{
+    position:relative;
+    background:
+      radial-gradient(circle at 80% 10%, rgba(255,107,53,0.18), transparent 45%),
+      radial-gradient(circle at 10% 90%, rgba(46,196,182,0.15), transparent 45%),
+      var(--navy-deep);
+    color:#fff;
+    padding:110px 0 90px;
+    overflow:hidden;
+  }
+  .map-grid{
+    position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+    background-size:42px 42px;
+    mask-image:linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(0,0,0,0.2));
+  }
+  .hero-inner{
+    position:relative;z-index:2;
+    display:grid;grid-template-columns:1.2fr 0.8fr;gap:40px;align-items:center;
+  }
+  .brand-row{
+    display:flex;align-items:center;gap:10px;margin-bottom:34px;
+    font-size:14px;letter-spacing:.2em;color:var(--muted);
+  }
+  .brand-row b{color:#fff;font-family:'Space Grotesk',sans-serif;letter-spacing:.08em;}
+  .hero h1{
+    font-size:clamp(28px,4.4vw,48px);
+    font-weight:700;
+    line-height:1.5;
+    margin-bottom:28px;
+  }
+  .hero h1 em{
+    font-style:normal;
+    color:var(--pin-orange);
+  }
+  .hero p.lead{
+    font-size:15px;color:#C7D1DD;max-width:520px;margin-bottom:36px;
+  }
+  .hero-cta{
+    display:inline-flex;gap:14px;flex-wrap:wrap;
+  }
+  .btn{
+    display:inline-block;padding:14px 28px;border-radius:6px;
+    font-size:14px;font-weight:700;letter-spacing:.04em;
+    font-family:'Space Grotesk',sans-serif;
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .btn-primary{
+    background:var(--pin-orange);color:#fff;
+    box-shadow:0 8px 24px rgba(255,107,53,0.35);
+  }
+  .btn-primary:hover{transform:translateY(-2px);}
+  .btn-ghost{
+    border:1px solid rgba(255,255,255,0.3);color:#fff;
+  }
+  .btn-ghost:hover{background:rgba(255,255,255,0.08);}
+
+  /* map visual */
+  .map-visual{
+    position:relative;
+    height:360px;
+    background:var(--navy-mid);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:16px;
+    overflow:hidden;
+  }
+  .map-visual::before{
+    content:'';position:absolute;inset:0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 38px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 38px);
+  }
+  .pin{
+    position:absolute;width:22px;height:22px;
+    background:var(--pin-orange);
+    border-radius:50% 50% 50% 0;
+    transform:rotate(-45deg);
+    box-shadow:0 0 0 6px rgba(255,107,53,0.18);
+  }
+  .pin.teal{background:var(--realtime-teal);box-shadow:0 0 0 6px rgba(46,196,182,0.18);}
+  .pin::after{
+    content:'';position:absolute;top:5px;left:5px;
+    width:8px;height:8px;border-radius:50%;background:var(--navy-mid);
+  }
+  .pin-card{
+    position:absolute;
+    background:#fff;color:var(--ink);
+    border-radius:8px;padding:8px 10px;
+    font-size:11px;font-weight:700;
+    box-shadow:0 10px 24px rgba(0,0,0,0.35);
+    white-space:nowrap;
+  }
+  .pin-card .dot{
+    display:inline-block;width:6px;height:6px;border-radius:50%;
+    background:var(--realtime-teal);margin-right:5px;
+  }
+
+  /* ===== SECTION GENERIC ===== */
+  section{padding:96px 0;}
+  .section-head{
+    max-width:640px;margin:0 0 56px;
+  }
+  .section-head .tag{margin-bottom:18px;}
+  .section-head h2{
+    font-size:clamp(24px,3vw,34px);
+    font-weight:700;color:var(--ink);line-height:1.5;
+  }
+  .section-head p{color:var(--muted);margin-top:16px;font-size:15px;}
+
+  /* ===== UNDERSTANDING ===== */
+  .understand{background:var(--navy-deep);color:#fff;position:relative;}
+  .understand .section-head h2{color:#fff;}
+  .understand .section-head p{color:#A9B6C4;}
+  .quote-block{
+    background:var(--navy-mid);
+    border-left:3px solid var(--pin-orange);
+    padding:28px 32px;border-radius:0 12px 12px 0;
+    margin-bottom:48px;
+    font-size:16px;color:#DCE3EB;
+  }
+  .issue-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:20px;
+  }
+  .issue-card{
+    background:var(--navy-mid);
+    border:1px solid rgba(255,255,255,0.07);
+    border-radius:12px;padding:26px;
+  }
+  .issue-card .num{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:13px;color:var(--pin-orange);letter-spacing:.1em;margin-bottom:10px;display:block;
+  }
+  .issue-card h3{font-size:16px;margin-bottom:10px;}
+  .issue-card p{font-size:13px;color:#A9B6C4;}
+
+  /* ===== VALUE CARDS ===== */
+  .value-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:24px;
+  }
+  .value-card{
+    background:#fff;border-radius:14px;padding:30px 26px;
+    border:1px solid var(--paper-dim);
+    position:relative;overflow:hidden;
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .value-card:hover{transform:translateY(-4px);box-shadow:0 18px 36px rgba(22,38,61,0.1);}
+  .icon-shape{
+    width:46px;height:46px;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:18px;background:var(--navy-deep);
+  }
+  .icon-pin{width:16px;height:16px;background:var(--pin-orange);border-radius:50% 50% 50% 0;transform:rotate(-45deg);}
+  .icon-sync{width:18px;height:18px;border:3px solid var(--realtime-teal);border-radius:50%;border-top-color:transparent;}
+  .icon-code{font-family:'Space Grotesk';color:#fff;font-weight:700;font-size:14px;}
+  .icon-scan{width:20px;height:14px;background:repeating-linear-gradient(90deg,#fff 0 2px,transparent 2px 4px);}
+  .icon-layer{width:18px;height:18px;border:3px solid var(--paper);border-radius:4px;transform:rotate(10deg);}
+  .value-card h3{font-size:17px;margin-bottom:10px;color:var(--ink);}
+  .value-card p{font-size:13.5px;color:var(--muted);}
+
+  /* ===== STACK / TECH ===== */
+  .stack-section{background:var(--paper);}
+  .stack-wrap{
+    display:grid;grid-template-columns:1fr 1fr;gap:32px;
+  }
+  .stack-col{
+    background:#fff;border:1px solid var(--paper-dim);border-radius:14px;padding:30px;
+  }
+  .stack-col h3{
+    font-size:15px;margin-bottom:18px;color:var(--pin-orange);
+    letter-spacing:.06em;text-transform:uppercase;
+    font-family:'Space Grotesk',sans-serif;
+  }
+  .stack-col ul{list-style:none;}
+  .stack-col li{
+    padding:10px 0;border-bottom:1px dashed var(--paper-dim);
+    font-size:14px;display:flex;justify-content:space-between;gap:10px;
+  }
+  .stack-col li span.label{color:var(--muted);font-size:12px;}
+  .barcode-deco{
+    height:34px;margin-top:26px;
+    background:repeating-linear-gradient(90deg, var(--navy-deep) 0 2px, transparent 2px 5px, var(--navy-deep) 5px 7px, transparent 7px 13px);
+    border-radius:4px;opacity:0.85;
+  }
+
+  /* ===== ESTIMATE ===== */
+  .estimate-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:20px;
+  }
+  .estimate-card{
+    background:var(--navy-deep);color:#fff;border-radius:14px;padding:30px;
+    position:relative;
+  }
+  .estimate-card .phase{
+    font-size:12px;letter-spacing:.14em;color:var(--realtime-teal);
+    font-family:'Space Grotesk',sans-serif;text-transform:uppercase;margin-bottom:14px;
+  }
+  .estimate-card .price{
+    font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;margin-bottom:8px;
+  }
+  .estimate-card .price small{font-size:13px;font-weight:400;color:#A9B6C4;}
+  .estimate-card p{font-size:12.5px;color:#A9B6C4;}
+  .estimate-note{
+    margin-top:26px;font-size:13px;color:var(--muted);
+    background:#fff;border:1px solid var(--paper-dim);padding:18px 22px;border-radius:10px;
+  }
+
+  /* ===== TRACK RECORD ===== */
+  .track-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:20px;
+  }
+  .track-card{
+    background:#fff;border:1px solid var(--paper-dim);border-radius:14px;padding:24px;
+  }
+  .track-card .tagline{
+    font-size:11px;color:var(--realtime-teal);letter-spacing:.1em;
+    font-family:'Space Grotesk',sans-serif;text-transform:uppercase;margin-bottom:10px;
+  }
+  .track-card h3{font-size:15px;margin-bottom:10px;}
+  .track-card p{font-size:13px;color:var(--muted);}
+
+  /* ===== PROCESS TIMELINE ===== */
+  .process-section{background:var(--navy-deep);color:#fff;}
+  .process-section .section-head h2{color:#fff;}
+  .process-section .section-head p{color:#A9B6C4;}
+  .timeline{
+    position:relative;
+    padding-left:26px;
+  }
+  .timeline::before{
+    content:'';position:absolute;left:5px;top:6px;bottom:6px;width:2px;
+    background:linear-gradient(to bottom, var(--pin-orange), var(--realtime-teal));
+  }
+  .tl-item{position:relative;padding-bottom:40px;}
+  .tl-item:last-child{padding-bottom:0;}
+  .tl-item::before{
+    content:'';position:absolute;left:-26px;top:4px;
+    width:12px;height:12px;border-radius:50%;
+    background:var(--navy-deep);border:3px solid var(--pin-orange);
+  }
+  .tl-item .step-label{
+    font-family:'Space Grotesk',sans-serif;font-size:12px;letter-spacing:.1em;
+    color:var(--pin-orange);text-transform:uppercase;margin-bottom:6px;
+  }
+  .tl-item h3{font-size:17px;margin-bottom:8px;}
+  .tl-item p{font-size:13.5px;color:#A9B6C4;max-width:560px;}
+
+  /* ===== CLOSING ===== */
+  .closing{
+    background:
+      radial-gradient(circle at 20% 20%, rgba(255,107,53,0.12), transparent 50%),
+      radial-gradient(circle at 85% 80%, rgba(46,196,182,0.14), transparent 50%),
+      var(--navy-mid);
+    color:#fff;text-align:center;
+    border-radius:24px;
+    padding:80px 40px;
+    margin:0 24px;
+  }
+  .closing h2{font-size:clamp(22px,3.4vw,32px);margin-bottom:18px;}
+  .closing p{color:#C7D1DD;max-width:540px;margin:0 auto 34px;font-size:14.5px;}
+  footer{
+    text-align:center;padding:40px 24px;color:var(--muted);font-size:12px;
+  }
+
+  @media (max-width:860px){
+    .hero-inner{grid-template-columns:1fr;}
+    .map-visual{height:260px;order:-1;}
+    .issue-grid, .value-grid, .estimate-grid, .track-grid{grid-template-columns:1fr;}
+    .stack-wrap{grid-template-columns:1fr;}
+    section{padding:64px 0;}
+    .closing{padding:56px 24px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="map-grid"></div>
+  <div class="wrap hero-inner">
+    <div>
+      <div class="brand-row"><b>KAIROS</b> &nbsp;|&nbsp; Web制作・システム開発チーム からのご提案</div>
+      <div class="tag">Live Proposal</div>
+      <h1>在庫は、店舗の奥に眠らせない。<br><em>地図の上で、今すぐ見つかる。</em></h1>
+      <p class="lead">
+        「地図連動型 店舗別在庫検索サービス」のMVP開発について、
+        技術構成・費用感・開発実績をまとめてご提案します。
+        最小構成で確実に立ち上げ、育てていける設計を前提にお話しします。
+      </p>
+      <div class="hero-cta">
+        <a href="#estimate" class="btn btn-primary">概算費用を見る</a>
+        <a href="#process" class="btn btn-ghost">進め方を見る</a>
+      </div>
+    </div>
+    <div class="map-visual">
+      <div class="pin" style="top:40px;left:60px;"></div>
+      <div class="pin teal" style="top:120px;left:160px;"></div>
+      <div class="pin" style="top:190px;left:90px;"></div>
+      <div class="pin teal" style="top:90px;left:230px;"></div>
+      <div class="pin-card" style="top:150px;left:150px;"><span class="dot"></span>在庫 12点・2分前更新</div>
+      <div class="pin-card" style="top:50px;left:40px;"><span class="dot"></span>在庫 3点・たった今</div>
+    </div>
+  </div>
+</header>
+
+<section class="understand">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="tag">Understanding</div>
+      <h2>「地図で探す」の裏側には、<br>更新されない在庫データという壁がある。</h2>
+      <p>今回のご依頼を拝見し、単なる地図アプリではなく「正しさが保たれ続けるデータ基盤」こそが本質だと理解しています。</p>
+    </div>
+    <div class="quote-block">
+      「店舗スタッフがスマホでサッと更新でき、利用者にはその瞬間に反映される」—
+      この一往復のスピードと信頼性が、MVPの成否を分けると考えています。
+      ノーコードでは実現しづらい部分であり、だからこそコードを書く意味があります。
+    </div>
+    <div class="issue-grid">
+      <div class="issue-card">
+        <span class="num">ISSUE 01</span>
+        <h3>在庫情報の分散と鮮度</h3>
+        <p>店舗ごとにバラバラな在庫を、誰がいつ更新したか分かる形で一元化する必要があります。</p>
+      </div>
+      <div class="issue-card">
+        <span class="num">ISSUE 02</span>
+        <h3>現場オペレーションの負荷</h3>
+        <p>バーコード読み取りによる更新は、スタッフの手間を最小化しないと定着しません。</p>
+      </div>
+      <div class="issue-card">
+        <span class="num">ISSUE 03</span>
+        <h3>将来拡張への備え</h3>
+        <p>小さく始めつつ、店舗数・商品数の増加や引き継ぎに耐える設計が求められています。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <div class="tag" style="color:var(--pin-orange);border-color:rgba(255,107,53,0.3);background:rgba(255,107,53,0.08);">What We Provide</div>
+      <h2>Kairosが提供できる価値</h2>
+      <p>MVPとして「軽く」、しかし「ちゃんと引き継げる」構成で開発します。</p>
+    </div>
+    <div class="value-grid">
+      <div class="value-card">
+        <div class="icon-shape"><div class="icon-pin"></div></div>
+        <h3>地図UI × 在庫絞り込みの一体設計</h3>
+        <p>地図表示ライブラリと在庫フィルタを疎結合に設計し、表示速度と将来のUI改修のしやすさを両立します。</p>
+      </div>
+      <div class="value-card">
+        <div class="icon-shape"><div class="icon-sync"></div></div>
+        <h3>リアルタイムに近い在庫反映</h3>
+        <p>スタッフ更新から利用者画面への反映までを数秒単位に。Webhook／Realtime DBの活用で体感速度を担保します。</p>
+      </div>
+      <div class="value-card">
+        <div class="icon-shape"><div class="icon-scan"></div></div>
+        <h3>スマホ完結のバーコード運用</h3>
+        <p>ブラウザ標準カメラAPIでJAN/バーコード読取を実装。専用アプリ不要でスタッフの導入障壁を下げます。</p>
+      </div>
+      <div class="value-card">
+        <div class="icon-shape"><div class="icon-layer"></div></div>
+        <h3>引き継ぎ前提のコード設計</h3>
+        <p>標準的なフレームワーク・命名規約・README整備により、別の開発者が読んでも迷わない構成にします。</p>
+      </div>
+      <div class="value-card">
+        <div class="icon-shape"><div class="icon-code">OSS</div></div>
+        <h3>OSS・既存サービス活用で費用最適化</h3>
+        <p>地図・認証・ストレージなど車輪の再発明をせず、必要な部分だけ自前実装してコストを抑えます。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="stack-section">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="tag" style="color:var(--pin-orange);border-color:rgba(255,107,53,0.3);background:rgba(255,107,53,0.08);">Tech Proposal</div>
+      <h2>推奨する技術構成（MVP想定）</h2>
+      <p>将来の機能拡張と、別開発者への引き継ぎを前提にした構成です。</p>
+    </div>
+    <div class="stack-wrap">
+      <div class="stack-col">
+        <h3>Frontend / Map</h3>
+        <ul>
+          <li>Next.js (React) <span class="label">利用者・管理画面共通</span></li>
+          <li>MapLibre GL JS <span class="label">地図描画・OSSで運用費ゼロ</span></li>
+          <li>PWA対応 <span class="label">スタッフ用の擬似アプリ化</span></li>
+          <li>getUserMedia + バーコードJS <span class="label">カメラ読取</span></li>
+        </ul>
+      </div>
+      <div class="stack-col">
+        <h3>Backend / Data</h3>
+        <ul>
+          <li>Node.js (NestJS) or Supabase <span class="label">API・認証</span></li>
+          <li>PostgreSQL + PostGIS <span class="label">店舗位置・在庫管理</span></li>
+          <li>Realtime購読 <span class="label">在庫更新の即時反映</span></li>
+          <li>Vercel / Render <span class="label">小規模運用に最適な月額</span></li>
+        </ul>
+        <div class="barcode-deco"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="estimate">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="tag" style="color:var(--pin-orange);border-color:rgba(255,107,53,0.3);background:rgba(255,107,53,0.08);">Estimate</div>
+      <h2>概算費用と運用イメージ</h2>
+      <p>詳細仕様のすり合わせ後に正式見積りいたしますが、現時点の概算レンジは以下の通りです。</p>
+    </div>
+    <div class="estimate-grid">
+      <div class="estimate-card">
+        <div class="phase">Phase 01 — MVP開発</div>
+        <div class="price">60〜110<small>万円 目安</small></div>
+        <p>地図表示・在庫検索・スタッフ更新・バーコード読取までの最小機能一式。開発期間は約6〜9週間を想定。</p>
+      </div>
+      <div class="estimate-card">
+        <div class="phase">Phase 02 — 月額運用費</div>
+        <div class="price">0.5〜2<small>万円 / 月</small></div>
+        <p>サーバー・DB・地図タイル等のホスティング費。OSS中心構成のため小規模運用では低コストに収まります。</p>
+      </div>
+      <div class="estimate-card">
+        <div class="phase">Phase 03 — 拡張対応</div>
+        <div class="price">都度見積</div>
+        <p>店舗数拡大、在庫予約、プッシュ通知等。MVP設計時点で拡張ポイントを明示し、スムーズに着手できます。</p>
+      </div>
+    </div>
+    <div class="estimate-note">
+      ※ 上記は公開情報のみを基にした概算です。店舗数・商品点数・対応ブラウザ等の詳細をお伺いした上で、正式なお見積りとスケジュールをご提示します。
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <div class="tag" style="color:var(--pin-orange);border-color:rgba(255,107,53,0.3);background:rgba(255,107,53,0.08);">Track Record</div>
+      <h2>類似領域での開発実績</h2>
+      <p>位置情報・在庫／予約管理・リアルタイム同期を伴う開発を行ってきました。</p>
+    </div>
+    <div class="track-grid">
+      <div class="track-card">
+        <div class="tagline">Map × Search</div>
+        <h3>地図連動型の店舗検索プラットフォーム</h3>
+        <p>地図上の絞り込み検索とフィルタUIを構築。表示速度改善のためのピン描画最適化を実施。</p>
+      </div>
+      <div class="track-card">
+        <div class="tagline">Inventory Sync</div>
+        <h3>多拠点在庫のリアルタイム管理システム</h3>
+        <p>複数拠点のスタッフ入力をリアルタイムに反映。更新履歴・差分ログの設計も担当。</p>
+      </div>
+      <div class="track-card">
+        <div class="tagline">Mobile Scan</div>
+        <h3>スマホカメラによるコード読取業務ツール</h3>
+        <p>ブラウザ完結のバーコード・JANコード読取を実装し、専用端末不要の運用を実現。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="process-section" id="process">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="tag">Process</div>
+      <h2>進め方・スケジュールイメージ</h2>
+      <p>試験運用に必要な範囲に絞り、着実にリリースまで伴走します。</p>
+    </div>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="step-label">Week 1</div>
+        <h3>要件のすり合わせ・画面設計</h3>
+        <p>対象店舗数・商品数・利用デバイスを確認し、MVPの機能範囲とデータ構造を確定します。</p>
+      </div>
+      <div class="tl-item">
+        <div class="step-label">Week 2-3</div>
+        <h3>基盤構築（DB・地図・認証）</h3>
+        <p>店舗・商品・在庫のデータモデルを実装し、地図表示と絞り込み検索の骨格を作ります。</p>
+      </div>
+      <div class="tl-item">
+        <div class="step-label">Week 4-6</div>
+        <h3>スタッフ更新機能・バーコード読取</h3>
+        <p>スマホからの在庫更新画面とカメラ連携を実装し、利用者画面への即時反映を接続します。</p>
+      </div>
+      <div class="tl-item">
+        <div class="step-label">Week 7-8</div>
+        <h3>試験運用・微調整</h3>
+        <p>実店舗での試験運用を想定した動作確認・UI調整・ドキュメント整備を行います。</p>
+      </div>
+      <div class="tl-item">
+        <div class="step-label">Week 9〜</div>
+        <h3>納品・引き継ぎ・拡張計画</h3>
+        <p>ソースコード・DB設計書一式を納品。次フェーズの機能拡張案もあわせてご提示します。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="closing">
+      <h2>まずは要件の解像度を、一緒に合わせましょう。</h2>
+      <p>
+        対象店舗数・商品規模・将来の拡張方針など、個別にお伺いしながら
+        最適なMVP構成と正式なお見積りをご提示いたします。
+      </p>
+      <a href="#" class="btn btn-primary">Kairosに相談・見積り依頼をする</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  © Kairos — Web制作・システム開発チーム / 本提案は「地図連動型 店舗別在庫検索サービス」MVP開発案件向けに作成しています。
+</footer>
+
+</body>
+</html>
